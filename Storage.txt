@@ -1,0 +1,156 @@
+#define BLYNK_TEMPLATE_ID "TMPL29kQWO2Ud"
+#define BLYNK_TEMPLATE_NAME "STORAGE"
+#define BLYNK_AUTH_TOKEN "X7_n2uLSSLpN9KwRQxVKcXr2uf1LOOt3"
+
+ 
+#define BLYNK_PRINT Serial
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <BlynkSimpleEsp32.h>
+
+BlynkTimer timer;
+
+//BLYNK APP AND INTENET CONNECTIONS
+char auth[] = BLYNK_AUTH_TOKEN;
+char ssid[] = "SETSOM";
+char pass[] = "614444243";
+///////////////////////////////
+#include<DHT.h>
+#define Type DHT22
+int teMP_Pin =27;
+DHT dht(teMP_Pin,Type);
+int humd;
+float tempC;
+float tempF;
+int read_data;
+
+#include<LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27,16,2);
+
+int red=12;
+int green=14;
+int Buzzer=18;
+int relay2=16;
+int relay1=17;
+int SensorPin=32;
+
+
+#define VPIN_BUTTON_1    V3
+
+BLYNK_WRITE(VPIN_BUTTON_1) {
+  int toggleState_1 = param.asInt();
+  if(toggleState_1 == 1){
+   digitalWrite(relay2, LOW);
+  }
+  else { 
+ digitalWrite(relay2, HIGH);
+  }
+}
+
+void setup() {
+ lcd.begin();
+ lcd.backlight();
+ lcd.setCursor(2,0);
+ lcd.print("Storage System");
+ lcd.setCursor(3,1);
+ lcd.print("Monitoring...");
+ delay(2000);
+ pinMode(relay1,OUTPUT);
+ pinMode(relay2,OUTPUT);
+ pinMode(Buzzer,OUTPUT);
+ pinMode(red,OUTPUT);
+ pinMode(green,OUTPUT);
+  pinMode(SensorPin,INPUT);
+
+Serial.begin(115200);
+dht.begin();
+
+ Blynk.begin(auth, ssid, pass);
+
+  WiFi.begin(ssid, pass);
+  {
+    delay(1000);
+    Serial.print(".");
+//    lcd.clear();
+  }
+  Serial.println("WiFi connected");
+  
+    Serial.println("Ready");    //Test the serial monitor
+  timer.setInterval(100L, Temperature);
+  timer.setInterval(100L, Gas_sensor);
+
+
+  lcd.clear();
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+    Blynk.run();
+  timer.run();
+  digitalWrite(green,HIGH);
+}
+
+
+
+///////////////////////////
+void Gas_sensor() {
+ int  sensorValue = digitalRead(SensorPin);
+//  Serial.println(sensorValue);
+  int  newSen=map(sensorValue ,1,0,0,1);
+   Serial.println(newSen);
+    Blynk.virtualWrite(V2, newSen);
+  if (newSen==1){  
+   Blynk.logEvent("gassensor","WARNNG! Gas Detected!"); //Enter your Event Name
+    lcd.setCursor(0, 1);
+    lcd.print(F(" Gas Detected !!  "));   
+    digitalWrite(red, HIGH);
+    digitalWrite(Buzzer,HIGH);
+    delay(1000);
+    digitalWrite(red, LOW);
+    digitalWrite(Buzzer,LOW);
+    delay(1000);
+    digitalWrite(Buzzer,HIGH);
+    digitalWrite(red, HIGH);
+    delay(1000);
+  }
+  else{
+  lcd.setCursor(0, 1);
+  lcd.println("  No   GAS ......: ");
+  digitalWrite(Buzzer,LOW);
+  digitalWrite(red, LOW);
+  }
+}
+
+
+
+//// Temperature
+
+void Temperature(){
+
+  tempC=dht.readTemperature();
+tempF=dht.readTemperature(true);
+humd=dht.readHumidity();
+
+ Blynk.virtualWrite(V0, tempC);
+  Blynk.virtualWrite(V1, humd);
+Serial.print("temperaturei =");
+Serial.println(tempC);
+Serial.println(tempF);
+
+ lcd.setCursor(0,0);
+ lcd.print("T: ");
+  lcd.setCursor(3,0);  
+ lcd.print(tempC);
+  lcd.setCursor(9,0);
+ lcd.print(" H: ");
+  lcd.setCursor(13,0);
+ lcd.print(humd);
+ 
+if(tempC>35){
+  Blynk.logEvent("temp","High Temperature Detect !"); //Enter your Event Name
+  digitalWrite(relay1,LOW);
+}
+else{
+    digitalWrite(relay1,HIGH);
+}
+}
